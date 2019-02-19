@@ -23,6 +23,7 @@ private const val AFU_PKG = "kotlinx/atomicfu"
 private const val JUCA_PKG = "java/util/concurrent/atomic"
 private const val JLI_PKG = "java/lang/invoke"
 private const val ATOMIC = "atomic"
+private const val TRACE = "$AFU_PKG/BaseTrace"
 
 private val INT_ARRAY_TYPE = getType("[I")
 private val LONG_ARRAY_TYPE = getType("[J")
@@ -64,6 +65,7 @@ private val VH_TYPE = getObjectType("$JLI_PKG/VarHandle")
 
 private val STRING_TYPE = getObjectType("java/lang/String")
 private val CLASS_TYPE = getObjectType("java/lang/Class")
+private val FUNCTION_2ARGS = "kotlin/jvm/functions/Function2;"
 
 private fun String.prettyStr() = replace('/', '.')
 
@@ -75,6 +77,15 @@ private const val GET_VALUE = "getValue"
 private const val SET_VALUE = "setValue"
 
 private const val AFU_CLS = "$AFU_PKG/AtomicFU"
+private const val TRACE_CLS = "$AFU_PKG/TraceKt"
+
+private val TRACE_APPEND = MethodId(TRACE, "append", getMethodDescriptor(VOID_TYPE, STRING_TYPE), INVOKEVIRTUAL)
+private val TRACE_FORMAT_FUNC = "L$FUNCTION_2ARGS"
+private val TRACE_DEFAULT_ARGS = "I${OBJECT_TYPE.descriptor}"
+private const val DEFAULT = "\$default"
+
+private val TRACE_FACTORY = MethodId(TRACE_CLS, "Trace", "(I$TRACE_FORMAT_FUNC)L$TRACE;", INVOKESTATIC)
+private val TRACE_DEFAULT_FACTORY = MethodId(TRACE_CLS, "Trace$DEFAULT", "(I$TRACE_FORMAT_FUNC$TRACE_DEFAULT_ARGS)L$TRACE;", INVOKESTATIC)
 
 private val FACTORIES: Set<MethodId> = setOf(
     MethodId(AFU_CLS, ATOMIC, "(Ljava/lang/Object;)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
@@ -86,7 +97,17 @@ private val FACTORIES: Set<MethodId> = setOf(
     MethodId("$AFU_PKG/AtomicLongArray", "<init>", "(I)V", INVOKESPECIAL),
     MethodId("$AFU_PKG/AtomicBooleanArray", "<init>", "(I)V", INVOKESPECIAL),
     MethodId("$AFU_PKG/AtomicArray", "<init>", "(I)V", INVOKESPECIAL),
-    MethodId("$AFU_PKG/AtomicFU_commonKt", "atomicArrayOfNulls", "(I)L$AFU_PKG/AtomicArray;", INVOKESTATIC)
+    MethodId("$AFU_PKG/AtomicFU_commonKt", "atomicArrayOfNulls", "(I)L$AFU_PKG/AtomicArray;", INVOKESTATIC),
+
+    MethodId(AFU_CLS, ATOMIC, "(Ljava/lang/Object;L$TRACE;)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(IL$TRACE;)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(JL$TRACE;)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(ZL$TRACE;)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC),
+
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(Ljava/lang/Object;L$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(IL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(JL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(ZL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC)
 )
 
 private operator fun Int.contains(bit: Int) = this and bit != 0
@@ -155,6 +176,7 @@ class AtomicFUTransformer(
 
     private val fields = mutableMapOf<FieldId, FieldInfo>()
     private val accessors = mutableMapOf<MethodId, FieldInfo>()
+    private val traceAccessors = mutableSetOf<MethodId>()
     private val removeMethods = mutableSetOf<MethodId>()
 
     override fun transform() {
@@ -329,16 +351,20 @@ class AtomicFUTransformer(
                 val fieldType = getType(fi.desc)
                 val accessorMethod = MethodId(className, name, desc, accessToInvokeOpcode(access))
                 info("$field accessor $name found")
-                val fieldInfo = registerField(field, fieldType, isStatic)
-                fieldInfo.accessors += accessorMethod
-                accessors[accessorMethod] = fieldInfo
+                if (fieldType == getObjectType(TRACE)) {
+                    traceAccessors.add(accessorMethod)
+                } else {
+                    val fieldInfo = registerField(field, fieldType, isStatic)
+                    fieldInfo.accessors += accessorMethod
+                    accessors[accessorMethod] = fieldInfo
+                }
             }
         }
     }
 
     // returns a type on which this is a potential accessor
     private fun getPotentialAccessorType(access: Int, className: String, methodType: Type): Type? {
-        if (methodType.returnType !in AFU_TYPES) return null
+        if (methodType.returnType !in AFU_TYPES && methodType.returnType != getObjectType(TRACE)) return null
         return if (access and ACC_STATIC != 0) {
             if (access and ACC_FINAL != 0 && methodType.argumentTypes.isEmpty()) {
                 // accessor for top-level atomic
@@ -423,6 +449,8 @@ class AtomicFUTransformer(
                 transformed = true
                 return fv
             }
+            // skip trace field
+            if (fieldType.descriptor == getObjectType(TRACE).descriptor) return null
             return super.visitField(access, name, desc, signature, value)
         }
 
@@ -493,11 +521,8 @@ class AtomicFUTransformer(
             exceptions: Array<out String>?
         ): MethodVisitor? {
             val methodId = MethodId(className, name, desc, accessToInvokeOpcode(access))
-            if (methodId in accessors || methodId in removeMethods) {
-                // drop and skip the methods that were found in Phase 1
-                // todo: should remove those methods from kotlin metadata, too
-                transformed = true
-                return null
+            if (methodId in accessors || methodId in traceAccessors || methodId in removeMethods) {
+                return null // drop accessor
             }
             val sourceInfo = SourceInfo(methodId, source)
             val superMV = if (name == "<clinit>" && desc == "()V") {
@@ -946,29 +971,29 @@ class AtomicFUTransformer(
 
         private fun putPrimitiveTypeWrapper(
             factoryInsn: MethodInsnNode,
+            initStart: AbstractInsnNode,
             f: FieldInfo,
             next: FieldInsnNode
         ): AbstractInsnNode? {
             // generate wrapper class for static fields of primitive type
             val factoryArg = getMethodType(factoryInsn.desc).argumentTypes[0]
             generateRefVolatileClass(f, factoryArg)
-            val firstInitInsn = FlowAnalyzer(next).getInitStart()
             // remove calling atomic factory for static field and following putstatic
             val afterPutStatic = next.next
             instructions.remove(factoryInsn)
             instructions.remove(next)
-            initRefVolatile(f, factoryArg, firstInitInsn, afterPutStatic)
+            initRefVolatile(f, factoryArg, initStart, afterPutStatic)
             return afterPutStatic
         }
 
         private fun putJucaAtomicArray(
             arrayfactoryInsn: MethodInsnNode,
+            initStart: AbstractInsnNode,
             f: FieldInfo,
             next: FieldInsnNode
         ): AbstractInsnNode? {
             // replace with invoking j.u.c.a.Atomic*Array constructor
             val jucaAtomicArrayDesc = f.typeInfo.fuType.descriptor
-            val initStart = FlowAnalyzer(next).getInitStart().next
             if (initStart.opcode == NEW) {
                 // change descriptor of NEW instruction
                 (initStart as TypeInsnNode).desc = descToName(jucaAtomicArrayDesc)
@@ -992,10 +1017,10 @@ class AtomicFUTransformer(
 
         private fun putPureVhArray(
             arrayFactoryInsn: MethodInsnNode,
+            initStart: AbstractInsnNode,
             f: FieldInfo,
             next: FieldInsnNode
         ): AbstractInsnNode? {
-            val initStart = FlowAnalyzer(next).getInitStart().next
             if (initStart.opcode == NEW) {
                 // remove dup
                 instructions.remove(initStart.next)
@@ -1015,6 +1040,46 @@ class AtomicFUTransformer(
             return next.next
         }
 
+        // erases pushing atomic factory trace arguments
+        // returns the first value argument push
+        private fun eraseTraceInit(atomicFactory: MethodInsnNode, isArrayFactory: Boolean): AbstractInsnNode {
+            val initStart = FlowAnalyzer(atomicFactory).getInitStart()
+            if (isArrayFactory) return initStart
+            var lastArg = atomicFactory.previous
+            val valueArgInitLast = FlowAnalyzer(atomicFactory).getValueArgInitLast()
+            while (lastArg != valueArgInitLast) {
+                val prev = lastArg.previous
+                instructions.remove(lastArg)
+                lastArg = prev
+            }
+            return initStart
+        }
+
+        private fun eraseTraceInfo(append: AbstractInsnNode): AbstractInsnNode {
+            // remove append trace instructions: from append invocation up to getfield Trace or accessor to Trace field
+            val next = append.next
+            var start = append
+            val isGetFieldTrace = { insn: AbstractInsnNode ->
+                insn.opcode == GETFIELD && (start as FieldInsnNode).desc == Type.getObjectType(TRACE).descriptor }
+            val isTraceAccessor = { insn: AbstractInsnNode ->
+                if (insn is MethodInsnNode) {
+                    val methodId = MethodId(insn.owner, insn.name, insn.desc, insn.opcode)
+                    methodId in traceAccessors
+                } else false
+            }
+            while (!(isGetFieldTrace(start) || isTraceAccessor(start))) {
+                val prev = start.previous
+                instructions.remove(start)
+                start = prev
+            }
+            if (isTraceAccessor(start)) {
+                instructions.remove(start.previous.previous)
+                instructions.remove(start.previous)
+            }
+            instructions.remove(start)
+            return next
+        }
+
         private fun transform(i: AbstractInsnNode): AbstractInsnNode? {
             when (i) {
                 is MethodInsnNode -> {
@@ -1026,15 +1091,18 @@ class AtomicFUTransformer(
                             val fieldId = (next as? FieldInsnNode)?.checkPutFieldOrPutStatic()
                                 ?: abort("factory $methodId invocation must be followed by putfield")
                             val f = fields[fieldId]!!
+                            val isArray = AFU_CLASSES[i.owner]?.let { it.originalType.sort == ARRAY } ?: false
+                            // erase pushing arguments for trace initialisation
+                            val newInitStart = eraseTraceInit(i, isArray)
                             // in FU mode wrap values of top-level primitive atomics into corresponding *RefVolatile class
                             if (!vh && f.isStatic && !f.isArray) {
-                                return putPrimitiveTypeWrapper(i, f, next)
+                                return putPrimitiveTypeWrapper(i, newInitStart, f, next)
                             }
                             if (f.isArray) {
                                 return if (vh) {
-                                    putPureVhArray(i, f, next)
+                                    putPureVhArray(i, newInitStart, f, next)
                                 } else {
-                                    putJucaAtomicArray(i, f, next)
+                                    putJucaAtomicArray(i, newInitStart, f, next)
                                 }
                             }
                             instructions.remove(i)
@@ -1063,10 +1131,24 @@ class AtomicFUTransformer(
                             transformed = true
                             return fixupLoadedAtomicVar(f, j)
                         }
+                        methodId == TRACE_FACTORY || methodId == TRACE_DEFAULT_FACTORY -> {
+                            // remove trace factory and following putfield
+                            val argsSize = getMethodType(methodId.desc).argumentTypes.size
+                            val putfield = i.next
+                            val next = putfield.next
+                            // remove trace factory args, aload of parent class and factory itself
+                            var insn = i
+                            repeat(argsSize + 2) { val prev = insn.previous; instructions.remove(insn); insn = prev }
+                            instructions.remove(putfield)
+                            return next
+                        }
+                        methodId == TRACE_APPEND -> {
+                            return eraseTraceInfo(i)
+                        }
                         methodId in removeMethods -> {
                             abort(
                                 "invocation of method $methodId on atomic types. " +
-                                        "Make the later method 'inline' to use it", i
+                                        "Make the latter method 'inline' to use it", i
                             )
                         }
                         i.opcode == INVOKEVIRTUAL && i.owner in AFU_CLASSES -> {

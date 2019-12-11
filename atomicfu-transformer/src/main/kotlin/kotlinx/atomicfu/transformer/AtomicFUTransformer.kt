@@ -176,6 +176,7 @@ class AtomicFUTransformer(
 
     private val fields = mutableMapOf<FieldId, FieldInfo>()
     private val accessors = mutableMapOf<MethodId, FieldInfo>()
+    private val traceFields = mutableSetOf<FieldId>()
     private val traceAccessors = mutableSetOf<MethodId>()
     private val removeMethods = mutableSetOf<MethodId>()
 
@@ -450,7 +451,11 @@ class AtomicFUTransformer(
                 return fv
             }
             // skip trace field
-            if (fieldType.descriptor == getObjectType(TRACE).descriptor) return null
+            if (fieldType.descriptor == getObjectType(TRACE).descriptor) {
+                traceFields += FieldId(className, name, desc)
+                transformed = true
+                return null
+            }
             return super.visitField(access, name, desc, signature, value)
         }
 
@@ -522,6 +527,7 @@ class AtomicFUTransformer(
         ): MethodVisitor? {
             val methodId = MethodId(className, name, desc, accessToInvokeOpcode(access))
             if (methodId in accessors || methodId in traceAccessors || methodId in removeMethods) {
+                transformed = true
                 return null // drop accessor
             }
             val sourceInfo = SourceInfo(methodId, source)
@@ -557,8 +563,8 @@ class AtomicFUTransformer(
             // remove unused methods from metadata
             metadata?.let {
                 val mt = MetadataTransformer(
-                    removeFields = fields.keys,
-                    removeMethods = accessors.keys + removeMethods
+                    removeFields = fields.keys + traceFields,
+                    removeMethods = accessors.keys + traceAccessors + removeMethods
                 )
                 if (mt.transformMetadata(it)) transformed = true
                 if (cv != null) it.accept(cv.visitAnnotation(KOTLIN_METADATA_DESC, true))

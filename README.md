@@ -23,6 +23,7 @@ The idiomatic way to use atomic operations in Kotlin.
   * [User-defined extensions on atomics](#user-defined-extensions-on-atomics)
   * [Locks](#locks)
   * [Testing of lock-free data structures](#testing-lock-free-data-structures-on-jvm).
+  * [Tracing operations](#tracing-operations)
 
 ## Example
 
@@ -339,29 +340,34 @@ execution of tests with the original (non-transformed) classes for Maven:
 
 For Gradle there is nothing else to add. Tests are always run using original (non-transformed) classes.
 
-### Multiplatform debug using atomicfu trace
+### Tracing operations
 
 You can debug your tests tracing atomic operations with a special trace object:
-```kotlin
-private val t = Trace()
-private val a = atomic(0, t)
 
-fun dec(): Int {
-    t { "current value = ${a.value}" } 
-    return a.getAndDecrement()
-}
-```
-All trace messages regarding atomic variable `a` are stored in a cyclic array `trace` inside `t`. 
- 
-You can optionally set the size of trace's message array and format function:
 ```kotlin
-private val t = Trace(size = 64) {   
+private val trace = Trace()
+private val current = atomic(0, trace)
+
+fun update(x: Int): Int {           
+    // custom trace message
+    trace { "calling update($x)" }
+    // automatic tracing of modification operations 
+    return current.getAndAdd(x)
+}
+```      
+
+All trace messages are stored in a cyclic array inside `trace`. 
+ 
+You can optionally set the size of trace's message array and format function. For example, 
+you can add a current thread name to the traced messages:
+
+```kotlin
+private val trace = Trace(size = 64) {   
     index, // index of a trace message 
-    text   // text passed when invoking t { text }
+    text   // text passed when invoking trace { text }
     -> "$index: [${Thread.currentThread().name}] $text" 
 } 
-```
+```                           
+
 `trace` is only seen before transformation and completely erased after on Kotlin/JVM and Kotlin/JS.
-
-
 

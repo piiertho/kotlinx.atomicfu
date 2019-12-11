@@ -23,7 +23,7 @@ private const val AFU_PKG = "kotlinx/atomicfu"
 private const val JUCA_PKG = "java/util/concurrent/atomic"
 private const val JLI_PKG = "java/lang/invoke"
 private const val ATOMIC = "atomic"
-private const val TRACE = "$AFU_PKG/BaseTrace"
+private const val TRACE = "$AFU_PKG/Trace"
 
 private val INT_ARRAY_TYPE = getType("[I")
 private val LONG_ARRAY_TYPE = getType("[J")

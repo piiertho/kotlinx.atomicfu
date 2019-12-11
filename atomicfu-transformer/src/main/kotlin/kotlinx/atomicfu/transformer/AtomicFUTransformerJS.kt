@@ -16,7 +16,7 @@ private const val ATOMIC_ARRAY_CONSTRUCTOR = """Atomic(Ref|Int|Long|Boolean)Arra
 private const val MANGLED_VALUE_PROP = "kotlinx\$atomicfu\$value"
 
 private const val TRACE_CONSTRUCTOR = "atomicfu\\\$Trace\\\$"
-private const val TRACE_APPEND = "atomicfu\\\$BaseTrace\\\$append\\\$"
+private const val TRACE_APPEND = "atomicfu\\\$Trace\\\$append\\\$"
 
 private const val RECEIVER = "\$receiver"
 private const val SCOPE = "scope"

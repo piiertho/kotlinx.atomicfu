@@ -5,6 +5,7 @@
 package kotlinx.atomicfu
 
 import kotlin.js.JsName
+import kotlinx.atomicfu.TraceBase.None
 
 /**
  * Creates atomic reference with a given [initial] value.
@@ -15,7 +16,7 @@ import kotlin.js.JsName
  * private val f = atomic<Type>(initial)
  * ```
  */
-public expect fun <T> atomic(initial: T, trace: Trace = Trace.None): AtomicRef<T>
+public expect fun <T> atomic(initial: T, trace: TraceBase = None): AtomicRef<T>
 
 /**
  * Creates atomic [Int] with a given [initial] value.
@@ -26,7 +27,7 @@ public expect fun <T> atomic(initial: T, trace: Trace = Trace.None): AtomicRef<T
  * private val f = atomic(initialInt)
  * ```
  */
-public expect fun atomic(initial: Int, trace: Trace = Trace.None): AtomicInt
+public expect fun atomic(initial: Int, trace: TraceBase = None): AtomicInt
 
 /**
  * Creates atomic [Long] with a given [initial] value.
@@ -37,7 +38,7 @@ public expect fun atomic(initial: Int, trace: Trace = Trace.None): AtomicInt
  * private val f = atomic(initialLong)
  * ```
  */
-public expect fun atomic(initial: Long, trace: Trace = Trace.None): AtomicLong
+public expect fun atomic(initial: Long, trace: TraceBase = None): AtomicLong
 
 /**
  * Creates atomic [Boolean] with a given [initial] value.
@@ -48,7 +49,7 @@ public expect fun atomic(initial: Long, trace: Trace = Trace.None): AtomicLong
  * private val f = atomic(initialBoolean)
  * ```
  */
-public expect fun atomic(initial: Boolean, trace: Trace = Trace.None): AtomicBoolean
+public expect fun atomic(initial: Boolean, trace: TraceBase = None): AtomicBoolean
 
 /**
  * Creates array of AtomicRef<T> of specified size, where each element is initialised with null value

@@ -46,10 +46,21 @@ class FlowAnalyzer(
         abort("Flow control falls after the end of the method")
     }
 
-    // returns instruction preceding pushing arguments to the atomic factory
-    fun getInitStart(): AbstractInsnNode {
+    fun getEndOfUse(): AbstractInsnNode {
         var i = start
-        depth = -1
+        depth = 1
+        while (i != null) {
+            executeOne(i, true)
+            if (depth == 0) return i
+            i = i.next
+        }
+        abort("Flow control falls after the end of the method")
+    }
+
+    // returns instruction preceding pushing arguments to the atomic factory
+    fun getInitStart(stack: Int): AbstractInsnNode {
+        var i = start
+        depth = -stack
         while (i != null) {
             executeOne(i, false)
             if (depth == 0) return i

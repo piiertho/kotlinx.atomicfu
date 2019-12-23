@@ -23,7 +23,8 @@ private const val AFU_PKG = "kotlinx/atomicfu"
 private const val JUCA_PKG = "java/util/concurrent/atomic"
 private const val JLI_PKG = "java/lang/invoke"
 private const val ATOMIC = "atomic"
-private const val TRACE = "$AFU_PKG/Trace"
+private const val TRACE = "Trace"
+private const val TRACE_BASE = "TraceBase"
 
 private val INT_ARRAY_TYPE = getType("[I")
 private val LONG_ARRAY_TYPE = getType("[J")
@@ -77,15 +78,16 @@ private const val GET_VALUE = "getValue"
 private const val SET_VALUE = "setValue"
 
 private const val AFU_CLS = "$AFU_PKG/AtomicFU"
-private const val TRACE_CLS = "$AFU_PKG/TraceKt"
+private const val TRACE_KT = "$AFU_PKG/TraceKt"
+private const val TRACE_BASE_CLS = "$AFU_PKG/$TRACE_BASE"
 
-private val TRACE_APPEND = MethodId(TRACE, "append", getMethodDescriptor(VOID_TYPE, STRING_TYPE), INVOKEVIRTUAL)
+private val TRACE_APPEND = MethodId(TRACE_BASE_CLS, "append", getMethodDescriptor(VOID_TYPE, STRING_TYPE), INVOKEVIRTUAL)
 private val TRACE_FORMAT_FUNC = "L$FUNCTION_2ARGS"
 private val TRACE_DEFAULT_ARGS = "I${OBJECT_TYPE.descriptor}"
 private const val DEFAULT = "\$default"
 
-private val TRACE_FACTORY = MethodId(TRACE_CLS, "Trace", "(I$TRACE_FORMAT_FUNC)L$TRACE;", INVOKESTATIC)
-private val TRACE_DEFAULT_FACTORY = MethodId(TRACE_CLS, "Trace$DEFAULT", "(I$TRACE_FORMAT_FUNC$TRACE_DEFAULT_ARGS)L$TRACE;", INVOKESTATIC)
+private val TRACE_FACTORY = MethodId(TRACE_KT, TRACE, "(I$TRACE_FORMAT_FUNC)L$AFU_PKG/$TRACE_BASE;", INVOKESTATIC)
+private val TRACE_PARTIAL_ARGS_FACTORY = MethodId(TRACE_KT, "$TRACE$DEFAULT", "(I$TRACE_FORMAT_FUNC$TRACE_DEFAULT_ARGS)L$AFU_PKG/$TRACE_BASE;", INVOKESTATIC)
 
 private val FACTORIES: Set<MethodId> = setOf(
     MethodId(AFU_CLS, ATOMIC, "(Ljava/lang/Object;)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
@@ -99,15 +101,15 @@ private val FACTORIES: Set<MethodId> = setOf(
     MethodId("$AFU_PKG/AtomicArray", "<init>", "(I)V", INVOKESPECIAL),
     MethodId("$AFU_PKG/AtomicFU_commonKt", "atomicArrayOfNulls", "(I)L$AFU_PKG/AtomicArray;", INVOKESTATIC),
 
-    MethodId(AFU_CLS, ATOMIC, "(Ljava/lang/Object;L$TRACE;)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC, "(IL$TRACE;)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC, "(JL$TRACE;)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC, "(ZL$TRACE;)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(Ljava/lang/Object;L$TRACE_BASE_CLS;)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(IL$TRACE_BASE_CLS;)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(JL$TRACE_BASE_CLS;)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC, "(ZL$TRACE_BASE_CLS;)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC),
 
-    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(Ljava/lang/Object;L$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(IL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(JL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
-    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(ZL$TRACE;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC)
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(Ljava/lang/Object;L$TRACE_BASE_CLS;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicRef;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(IL$TRACE_BASE_CLS;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicInt;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(JL$TRACE_BASE_CLS;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicLong;", INVOKESTATIC),
+    MethodId(AFU_CLS, ATOMIC + DEFAULT, "(ZL$TRACE_BASE_CLS;$TRACE_DEFAULT_ARGS)L$AFU_PKG/AtomicBoolean;", INVOKESTATIC)
 )
 
 private operator fun Int.contains(bit: Int) = this and bit != 0
@@ -352,7 +354,7 @@ class AtomicFUTransformer(
                 val fieldType = getType(fi.desc)
                 val accessorMethod = MethodId(className, name, desc, accessToInvokeOpcode(access))
                 info("$field accessor $name found")
-                if (fieldType == getObjectType(TRACE)) {
+                if (fieldType == getObjectType(TRACE_BASE_CLS)) {
                     traceAccessors.add(accessorMethod)
                 } else {
                     val fieldInfo = registerField(field, fieldType, isStatic)
@@ -365,7 +367,7 @@ class AtomicFUTransformer(
 
     // returns a type on which this is a potential accessor
     private fun getPotentialAccessorType(access: Int, className: String, methodType: Type): Type? {
-        if (methodType.returnType !in AFU_TYPES && methodType.returnType != getObjectType(TRACE)) return null
+        if (methodType.returnType !in AFU_TYPES && methodType.returnType != getObjectType(TRACE_BASE_CLS)) return null
         return if (access and ACC_STATIC != 0) {
             if (access and ACC_FINAL != 0 && methodType.argumentTypes.isEmpty()) {
                 // accessor for top-level atomic
@@ -451,7 +453,7 @@ class AtomicFUTransformer(
                 return fv
             }
             // skip trace field
-            if (fieldType.descriptor == getObjectType(TRACE).descriptor) {
+            if (fieldType.descriptor == getObjectType(TRACE_BASE_CLS).descriptor) {
                 traceFields += FieldId(className, name, desc)
                 transformed = true
                 return null
@@ -1049,7 +1051,7 @@ class AtomicFUTransformer(
         // erases pushing atomic factory trace arguments
         // returns the first value argument push
         private fun eraseTraceInit(atomicFactory: MethodInsnNode, isArrayFactory: Boolean): AbstractInsnNode {
-            val initStart = FlowAnalyzer(atomicFactory).getInitStart()
+            val initStart = FlowAnalyzer(atomicFactory).getInitStart(1)
             if (isArrayFactory) return initStart
             var lastArg = atomicFactory.previous
             val valueArgInitLast = FlowAnalyzer(atomicFactory).getValueArgInitLast()
@@ -1063,10 +1065,10 @@ class AtomicFUTransformer(
 
         private fun eraseTraceInfo(append: AbstractInsnNode): AbstractInsnNode {
             // remove append trace instructions: from append invocation up to getfield Trace or accessor to Trace field
-            val next = append.next
+            val afterAppend = append.next
             var start = append
             val isGetFieldTrace = { insn: AbstractInsnNode ->
-                insn.opcode == GETFIELD && (start as FieldInsnNode).desc == Type.getObjectType(TRACE).descriptor }
+                insn.opcode == GETFIELD && (start as FieldInsnNode).desc == getObjectType(TRACE_BASE_CLS).descriptor }
             val isTraceAccessor = { insn: AbstractInsnNode ->
                 if (insn is MethodInsnNode) {
                     val methodId = MethodId(insn.owner, insn.name, insn.desc, insn.opcode)
@@ -1074,16 +1076,23 @@ class AtomicFUTransformer(
                 } else false
             }
             while (!(isGetFieldTrace(start) || isTraceAccessor(start))) {
-                val prev = start.previous
-                instructions.remove(start)
-                start = prev
+                start = start.previous
             }
+            // now start contains Trace getfield insn or Trace accessor
             if (isTraceAccessor(start)) {
                 instructions.remove(start.previous.previous)
                 instructions.remove(start.previous)
             }
-            instructions.remove(start)
-            return next
+            if (start.next is VarInsnNode) {
+                val v = (start.next as VarInsnNode).`var`
+                localVariables.removeIf { it.index == v }
+            }
+            while (start != afterAppend) {
+                val next = start.next
+                instructions.remove(start)
+                start = next
+            }
+            return afterAppend
         }
 
         private fun transform(i: AbstractInsnNode): AbstractInsnNode? {
@@ -1137,14 +1146,20 @@ class AtomicFUTransformer(
                             transformed = true
                             return fixupLoadedAtomicVar(f, j)
                         }
-                        methodId == TRACE_FACTORY || methodId == TRACE_DEFAULT_FACTORY -> {
+                        methodId == TRACE_FACTORY || methodId == TRACE_PARTIAL_ARGS_FACTORY -> {
                             // remove trace factory and following putfield
                             val argsSize = getMethodType(methodId.desc).argumentTypes.size
                             val putfield = i.next
                             val next = putfield.next
-                            // remove trace factory args, aload of parent class and factory itself
-                            var insn = i
-                            repeat(argsSize + 2) { val prev = insn.previous; instructions.remove(insn); insn = prev }
+                            val depth = if (i.opcode == INVOKESPECIAL) 2 else argsSize
+                            val initStart = FlowAnalyzer(i.previous).getInitStart(depth).previous
+                            var lastArg = i
+                            while (lastArg != initStart) {
+                                val prev = lastArg.previous
+                                instructions.remove(lastArg)
+                                lastArg = prev
+                            }
+                            instructions.remove(initStart) // aload of the parent class
                             instructions.remove(putfield)
                             return next
                         }
@@ -1154,7 +1169,7 @@ class AtomicFUTransformer(
                         methodId in removeMethods -> {
                             abort(
                                 "invocation of method $methodId on atomic types. " +
-                                        "Make the latter method 'inline' to use it", i
+                                    "Make the latter method 'inline' to use it", i
                             )
                         }
                         i.opcode == INVOKEVIRTUAL && i.owner in AFU_CLASSES -> {

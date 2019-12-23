@@ -12,10 +12,10 @@ import kotlin.native.concurrent.FreezableAtomicReference as KAtomicRef
 import kotlin.native.concurrent.isFrozen
 import kotlin.native.concurrent.freeze
 
-public actual fun <T> atomic(initial: T, trace: Trace): AtomicRef<T> = AtomicRef<T>(KAtomicRef(initial))
-public actual fun atomic(initial: Int, trace: Trace): AtomicInt = AtomicInt(KAtomicInt(initial))
-public actual fun atomic(initial: Long, trace: Trace): AtomicLong = AtomicLong(KAtomicLong(initial))
-public actual fun atomic(initial: Boolean, trace: Trace): AtomicBoolean = AtomicBoolean(KAtomicInt(if (initial) 1 else 0))
+public actual fun <T> atomic(initial: T, trace: TraceBase): AtomicRef<T> = AtomicRef<T>(KAtomicRef(initial))
+public actual fun atomic(initial: Int, trace: TraceBase): AtomicInt = AtomicInt(KAtomicInt(initial))
+public actual fun atomic(initial: Long, trace: TraceBase): AtomicLong = AtomicLong(KAtomicLong(initial))
+public actual fun atomic(initial: Boolean, trace: TraceBase): AtomicBoolean = AtomicBoolean(KAtomicInt(if (initial) 1 else 0))
 
 // ==================================== AtomicRef ====================================
 

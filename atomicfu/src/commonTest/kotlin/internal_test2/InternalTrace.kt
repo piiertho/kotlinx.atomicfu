@@ -1,7 +1,7 @@
 package internal_test2
 
-import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.Trace
+import kotlinx.atomicfu.atomic
 
 class Updater {
     internal val internalTrace = Trace { i, text -> "Updater: $i [$text]" }

@@ -6,7 +6,6 @@ package kotlinx.atomicfu.test
 
 import kotlinx.atomicfu.*
 import kotlin.test.*
-import kotlin.math.*
 
 class ArithmeticTest {
     @Test

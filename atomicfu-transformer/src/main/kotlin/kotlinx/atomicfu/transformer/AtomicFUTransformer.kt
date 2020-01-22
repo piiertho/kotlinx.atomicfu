@@ -1082,6 +1082,8 @@ class AtomicFUTransformer(
             if (isTraceAccessor(start)) {
                 instructions.remove(start.previous.previous)
                 instructions.remove(start.previous)
+            } else {
+                instructions.remove(start.previous)
             }
             if (start.next is VarInsnNode) {
                 val v = (start.next as VarInsnNode).`var`

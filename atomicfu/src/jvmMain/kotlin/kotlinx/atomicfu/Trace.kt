@@ -22,5 +22,5 @@ private class TraceImpl(size: Int, val format: (Int, String) -> String) : TraceB
         trace[i and mask] = format(index.get(), text)
     }
 
-    override fun toString(): String = trace.filterNotNull().joinToString()
+    override fun toString(): String = trace.slice(0 .. ((index.get() - 1) and mask)).joinToString("\n")
 }

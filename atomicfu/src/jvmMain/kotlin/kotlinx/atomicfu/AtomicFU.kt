@@ -72,7 +72,7 @@ public actual class AtomicRef<T> internal constructor(value: T, val trace: Trace
         set(value) {
             interceptor.beforeUpdate(this)
             field = value
-            trace { "value.set($value)" }
+            if (trace !== TraceBase.None) trace { "value.set($value)" }
             interceptor.afterSet(this, value)
         }
 
@@ -82,7 +82,7 @@ public actual class AtomicRef<T> internal constructor(value: T, val trace: Trace
     public actual fun lazySet(value: T) {
         interceptor.beforeUpdate(this)
         FU.lazySet(this, value)
-        trace { "value.lazySet($value)" }
+        if (trace !== TraceBase.None) trace { "value.lazySet($value)" }
         interceptor.afterSet(this, value)
     }
 
@@ -93,7 +93,7 @@ public actual class AtomicRef<T> internal constructor(value: T, val trace: Trace
         interceptor.beforeUpdate(this)
         val result = FU.compareAndSet(this, expect, update)
         if (result) {
-            trace { "value.CAS($expect, $update)" }
+            if (trace !== TraceBase.None) trace { "value.CAS($expect, $update)" }
             interceptor.afterRMW(this, expect, update)
         }
         return result
@@ -105,7 +105,7 @@ public actual class AtomicRef<T> internal constructor(value: T, val trace: Trace
     public actual fun getAndSet(value: T): T {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndSet(this, value) as T
-        trace { "value.getAndSet($value):$oldValue" }
+        if (trace !== TraceBase.None) trace { "value.getAndSet($value):$oldValue" }
         interceptor.afterRMW(this, oldValue, value)
         return oldValue
     }
@@ -139,7 +139,7 @@ public actual class AtomicBoolean internal constructor(v: Boolean, val trace: Tr
         set(value) {
             interceptor.beforeUpdate(this)
             _value = if (value) 1 else 0
-            trace { "value.set($value)" }
+            if (trace !== TraceBase.None) trace { "value.set($value)" }
             interceptor.afterSet(this, value)
         }
 
@@ -150,7 +150,7 @@ public actual class AtomicBoolean internal constructor(v: Boolean, val trace: Tr
         interceptor.beforeUpdate(this)
         val v = if (value) 1 else 0
         FU.lazySet(this, v)
-        trace { "value.lazySet($value)" }
+        if (trace !== TraceBase.None) trace { "value.lazySet($value)" }
         interceptor.afterSet(this, value)
     }
 
@@ -163,7 +163,7 @@ public actual class AtomicBoolean internal constructor(v: Boolean, val trace: Tr
         val u = if (update) 1 else 0
         val result = FU.compareAndSet(this, e, u)
         if (result) {
-            trace { "value.CAS($expect, $update)" }
+            if (trace !== TraceBase.None) trace { "value.CAS($expect, $update)" }
             interceptor.afterRMW(this, expect, update)
         }
         return result
@@ -176,7 +176,7 @@ public actual class AtomicBoolean internal constructor(v: Boolean, val trace: Tr
         interceptor.beforeUpdate(this)
         val v = if (value) 1 else 0
         val oldValue = FU.getAndSet(this, v)
-        trace { "value.getAndSet($value):$oldValue" }
+        if (trace !== TraceBase.None) trace { "value.getAndSet($value):$oldValue" }
         interceptor.afterRMW(this, (oldValue == 1), value)
         return oldValue == 1
     }
@@ -204,7 +204,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
         set(value) {
             interceptor.beforeUpdate(this)
             field = value
-            trace { "value.set($value)" }
+            if (trace !== TraceBase.None) trace { "value.set($value)" }
             interceptor.afterSet(this, value)
         }
 
@@ -214,7 +214,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun lazySet(value: Int) {
         interceptor.beforeUpdate(this)
         FU.lazySet(this, value)
-        trace { "value.lazySet($value)" }
+        if (trace !== TraceBase.None) trace { "value.lazySet($value)" }
         interceptor.afterSet(this, value)
     }
 
@@ -225,7 +225,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
         interceptor.beforeUpdate(this)
         val result = FU.compareAndSet(this, expect, update)
         if (result) {
-            trace { "value.CAS($expect, $update)" }
+            if (trace !== TraceBase.None) trace { "value.CAS($expect, $update)" }
             interceptor.afterRMW(this, expect, update)
         }
         return result
@@ -237,7 +237,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun getAndSet(value: Int): Int {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndSet(this, value)
-        trace { "value.getAndSet($value):$oldValue" }
+        if (trace !== TraceBase.None) trace { "value.getAndSet($value):$oldValue" }
         interceptor.afterRMW(this, oldValue, value)
         return oldValue
     }
@@ -248,7 +248,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun getAndIncrement(): Int {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndIncrement(this)
-        trace { "value.getAndInc():$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndInc():$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue + 1)
         return oldValue
     }
@@ -259,7 +259,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun getAndDecrement(): Int {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndDecrement(this)
-        trace { "value.getAndDec():$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndDec():$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue - 1)
         return oldValue
     }
@@ -270,7 +270,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun getAndAdd(delta: Int): Int {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndAdd(this, delta)
-        trace { "value.getAndAdd($delta):$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndAdd($delta):$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue + delta)
         return oldValue
     }
@@ -281,7 +281,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun addAndGet(delta: Int): Int {
         interceptor.beforeUpdate(this)
         val newValue = FU.addAndGet(this, delta)
-        trace { "value.addAndGet($delta):$value" }
+        if (trace !== TraceBase.None) trace { "value.addAndGet($delta):$value" }
         interceptor.afterRMW(this, newValue - delta, newValue)
         return newValue
     }
@@ -292,7 +292,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun incrementAndGet(): Int {
         interceptor.beforeUpdate(this)
         val newValue = FU.incrementAndGet(this)
-        trace { "value.incAndGet():$value" }
+        if (trace !== TraceBase.None) trace { "value.incAndGet():$value" }
         interceptor.afterRMW(this, newValue - 1, newValue)
         return newValue
     }
@@ -303,7 +303,7 @@ public actual class AtomicInt internal constructor(value: Int, val trace: TraceB
     public actual fun decrementAndGet(): Int {
         interceptor.beforeUpdate(this)
         val newValue = FU.decrementAndGet(this)
-        trace { "value.decAndGet():$value" }
+        if (trace !== TraceBase.None) trace { "value.decAndGet():$value" }
         interceptor.afterRMW(this, newValue + 1, newValue)
         return newValue
     }
@@ -345,7 +345,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
         set(value) {
             interceptor.beforeUpdate(this)
             field = value
-            trace { "value.set($value)" }
+            if (trace !== TraceBase.None) trace { "value.set($value)" }
             interceptor.afterSet(this, value)
         }
 
@@ -355,7 +355,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun lazySet(value: Long) {
         interceptor.beforeUpdate(this)
         FU.lazySet(this, value)
-        trace { "value.lazySet($value)" }
+        if (trace !== TraceBase.None) trace { "value.lazySet($value)" }
         interceptor.afterSet(this, value)
     }
 
@@ -366,7 +366,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
         interceptor.beforeUpdate(this)
         val result = FU.compareAndSet(this, expect, update)
         if (result) {
-            trace { "value.CAS($expect, $update)" }
+            if (trace !== TraceBase.None) trace { "value.CAS($expect, $update)" }
             interceptor.afterRMW(this, expect, update)
         }
         return result
@@ -378,7 +378,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun getAndSet(value: Long): Long {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndSet(this, value)
-        trace { "value.getAndSet($value):$oldValue" }
+        if (trace !== TraceBase.None) trace { "value.getAndSet($value):$oldValue" }
         interceptor.afterRMW(this, oldValue, value)
         return oldValue
     }
@@ -389,7 +389,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun getAndIncrement(): Long {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndIncrement(this)
-        trace { "value.getAndInc():$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndInc():$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue + 1)
         return oldValue
     }
@@ -400,7 +400,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun getAndDecrement(): Long {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndDecrement(this)
-        trace { "value.getAndDec():$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndDec():$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue - 1)
         return oldValue
     }
@@ -411,7 +411,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun getAndAdd(delta: Long): Long {
         interceptor.beforeUpdate(this)
         val oldValue = FU.getAndAdd(this, delta)
-        trace { "value.getAndAdd($delta):$oldValue, value = $value" }
+        if (trace !== TraceBase.None) trace { "value.getAndAdd($delta):$oldValue, value = $value" }
         interceptor.afterRMW(this, oldValue, oldValue + delta)
         return oldValue
     }
@@ -422,7 +422,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun addAndGet(delta: Long): Long {
         interceptor.beforeUpdate(this)
         val newValue = FU.addAndGet(this, delta)
-        trace { "value.addAndGet($delta):$value" }
+        if (trace !== TraceBase.None) trace { "value.addAndGet($delta):$value" }
         interceptor.afterRMW(this, newValue - delta, newValue)
         return newValue
     }
@@ -433,7 +433,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun incrementAndGet(): Long {
         interceptor.beforeUpdate(this)
         val newValue = FU.incrementAndGet(this)
-        trace { "value.incAndGet():$value" }
+        if (trace !== TraceBase.None) trace { "value.incAndGet():$value" }
         interceptor.afterRMW(this, newValue - 1, newValue)
         return newValue
     }
@@ -444,7 +444,7 @@ public actual class AtomicLong internal constructor(value: Long, val trace: Trac
     public actual fun decrementAndGet(): Long {
         interceptor.beforeUpdate(this)
         val newValue = FU.decrementAndGet(this)
-        trace { "value.decAndGet():$value" }
+        if (trace !== TraceBase.None) trace { "value.decAndGet():$value" }
         interceptor.afterRMW(this, newValue + 1, newValue)
         return newValue
     }

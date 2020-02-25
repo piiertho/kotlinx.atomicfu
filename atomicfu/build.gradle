@@ -37,6 +37,10 @@ kotlin {
             addTarget(presets.watchosArm32)
             addTarget(presets.watchosArm64)
             addTarget(presets.watchosX86)
+            addTarget(presets.androidNativeArm32)
+            addTarget(presets.androidNativeArm64)
+            addTarget(presets.androidNativeX86)
+            addTarget(presets.androidNativeX64)
         }
     }
     sourceSets {
